@@ -1,285 +1,310 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Video and Audio Decode Performance Test</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        #controls {
-            margin-bottom: 20px;
-        }
-        #results {
-            white-space: pre-wrap;
-        }
-        #mediaContainer {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .mediaTile {
-            flex: 1 1 calc(25% - 10px); /* Adjust this to change the size of media tiles */
-            max-width: calc(25% - 10px);
-        }
-        video, audio {
-            width: 100%;
-            height: auto;
-            background: black;
-        }
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #controls {
+        margin-bottom: 20px;
+      }
+      #results {
+        white-space: pre-wrap;
+      }
+      #mediaContainer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .mediaTile {
+        flex: 1 1 calc(25% - 10px); /* Adjust this to change the size of media tiles */
+        max-width: calc(25% - 10px);
+      }
+      video,
+      audio {
+        width: 100%;
+        height: auto;
+        background: black;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Video and Audio Decode Performance Test</h1>
 
     <div id="controls">
-        <label for="videoFileInput">Select Video File:</label>
-        <input type="file" id="videoFileInput" accept="video/*"><br><br>
+      <!-- <label for="videoFileInput">Select Video File:</label>
+      <input type="file" id="videoFileInput" accept="video/*" /><br /><br />
 
-        <label for="audioFileInput">Select Audio File:</label>
-        <input type="file" id="audioFileInput" accept="audio/*"><br><br>
+      <label for="audioFileInput">Select Audio File:</label>
+      <input type="file" id="audioFileInput" accept="audio/*" /><br /><br /> -->
 
-        <label for="tileCountInput">Number of Video Tiles:</label>
-        <input type="number" id="tileCountInput" value="4" min="1" max="16"><br><br>
+      <label for="tileCountInput">Number of Video Tiles:</label>
+      <input
+        type="number"
+        id="tileCountInput"
+        value="4"
+        min="1"
+        max="128"
+      /><br /><br />
 
-        <label for="audioCountInput">Number of Audio Playbacks:</label>
-        <input type="number" id="audioCountInput" value="2" min="1" max="16"><br><br>
+      <label for="audioCountInput">Number of Audio Playbacks:</label>
+      <input
+        type="number"
+        id="audioCountInput"
+        value="2"
+        min="1"
+        max="16"
+      /><br /><br />
 
-        <button id="startTest" disabled>Start Test</button>
+      <button id="startTest" disabled>Start Test</button>
     </div>
 
     <div id="mediaContainer"></div>
     <pre id="results"></pre>
 
     <script>
-        const videoFileInput = document.getElementById('videoFileInput');
-        const audioFileInput = document.getElementById('audioFileInput');
-        const tileCountInput = document.getElementById('tileCountInput');
-        const audioCountInput = document.getElementById('audioCountInput');
-        const startTestButton = document.getElementById('startTest');
-        const resultsElement = document.getElementById('results');
-        const mediaContainer = document.getElementById('mediaContainer');
+      const videoFileInput = document.getElementById("videoFileInput");
+      const audioFileInput = document.getElementById("audioFileInput");
+      const tileCountInput = document.getElementById("tileCountInput");
+      const audioCountInput = document.getElementById("audioCountInput");
+      const startTestButton = document.getElementById("startTest");
+      const resultsElement = document.getElementById("results");
+      const mediaContainer = document.getElementById("mediaContainer");
 
-        let videoSrc = null;
-        let audioSrc = null;
-        let totalVideoTiles = 0;
-        let totalAudioPlaybacks = 0;
+      let videoSrc = null;
+      let audioSrc = null;
+      let totalVideoTiles = 0;
+      let totalAudioPlaybacks = 0;
 
-        let mediaElements = [];
-        let mediaEndedCount = 0;
+      let mediaElements = [];
+      let mediaEndedCount = 0;
 
-        let totalVideoDuration = 0;
-        let totalVideoPlaybackTime = 0;
-        let totalVideoDroppedFrameTime = 0;
+      let totalVideoDuration = 0;
+      let totalVideoPlaybackTime = 0;
+      let totalVideoDroppedFrameTime = 0;
 
-        let totalAudioDuration = 0;
-        let totalAudioPlaybackTime = 0;
-        let totalAudioPauseTime = 0;
+      let totalAudioDuration = 0;
+      let totalAudioPlaybackTime = 0;
+      let totalAudioPauseTime = 0;
 
-        videoFileInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                videoSrc = URL.createObjectURL(file);
-                checkStartButtonState();
-            }
+      videoSrc =
+        "https://raw.githubusercontent.com/sbcarp/electron-performance/refs/heads/main/12538609_1280_720_50fps.mp4";
+
+      audioSrc =
+        "https://raw.githubusercontent.com/sbcarp/electron-performance/refs/heads/main/546627__wax_vibe__inspirational-dramatic-song.wav";
+
+      checkStartButtonState();
+
+      // videoFileInput.addEventListener('change', function(event) {
+      //     const file = event.target.files[0];
+      //     if (file) {
+      //         videoSrc = URL.createObjectURL(file);
+      //         checkStartButtonState();
+      //     }
+      // });
+
+      // audioFileInput.addEventListener('change', function(event) {
+      //     const file = event.target.files[0];
+      //     if (file) {
+      //         audioSrc = URL.createObjectURL(file);
+      //         checkStartButtonState();
+      //     }
+      // });
+
+      function checkStartButtonState() {
+        if (videoSrc && audioSrc) {
+          startTestButton.disabled = false;
+        } else {
+          startTestButton.disabled = true;
+        }
+      }
+
+      startTestButton.addEventListener("click", startTest);
+
+      function startTest() {
+        // Reset previous test data
+        mediaElements = [];
+        mediaEndedCount = 0;
+
+        totalVideoDuration = 0;
+        totalVideoPlaybackTime = 0;
+        totalVideoDroppedFrameTime = 0;
+
+        totalAudioDuration = 0;
+        totalAudioPlaybackTime = 0;
+        totalAudioPauseTime = 0;
+
+        resultsElement.textContent = "";
+        mediaContainer.innerHTML = "";
+
+        totalVideoTiles = parseInt(tileCountInput.value) || 1;
+        totalAudioPlaybacks = parseInt(audioCountInput.value) || 1;
+
+        // Create video tiles
+        for (let i = 0; i < totalVideoTiles; i++) {
+          createAndPlayVideoTile(i);
+        }
+
+        // Create audio playbacks
+        for (let i = 0; i < totalAudioPlaybacks; i++) {
+          createAndPlayAudioElement(i);
+        }
+      }
+
+      function createAndPlayVideoTile(index) {
+        const mediaWrapper = document.createElement("div");
+        mediaWrapper.className = "mediaTile";
+
+        // Create video element
+        const videoElement = document.createElement("video");
+        videoElement.src = videoSrc;
+        // videoElement.playsInline = true;
+        videoElement.muted = true;
+        videoElement.loop = false;
+        videoElement.autoplay = false;
+        videoElement.controls = false; // Do not show controls
+
+        mediaWrapper.appendChild(videoElement);
+        mediaContainer.appendChild(mediaWrapper);
+        mediaElements.push({ videoElement });
+
+        // Store start and end times
+        let videoStartTime = 0;
+        let videoEndTime = 0;
+
+        // Video events
+        videoElement.addEventListener("play", () => {
+          videoStartTime = performance.now();
         });
 
-        audioFileInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                audioSrc = URL.createObjectURL(file);
-                checkStartButtonState();
-            }
+        videoElement.addEventListener("canplay", () => {
+          videoElement.play();
         });
 
-        function checkStartButtonState() {
-            if (videoSrc && audioSrc) {
-                startTestButton.disabled = false;
-            } else {
-                startTestButton.disabled = true;
-            }
+        videoElement.addEventListener("ended", () => {
+          videoEndTime = performance.now();
+          const actualPlaybackTime = (videoEndTime - videoStartTime) / 1000; // in seconds
+          const videoDuration = videoElement.duration; // in seconds
+
+          totalVideoPlaybackTime += actualPlaybackTime;
+          totalVideoDuration += videoDuration;
+
+          // Get playback quality data
+          const quality = getPlaybackQuality(videoElement);
+          const droppedFrames = quality.droppedVideoFrames;
+          const totalFrames = quality.totalVideoFrames;
+
+          // Estimate frame duration
+          let frameDuration = 0;
+          if (totalFrames > 0) {
+            frameDuration = videoDuration / totalFrames; // in seconds
+          } else {
+            // Fallback to default frame duration (assuming 30 FPS)
+            frameDuration = 1 / 30;
+          }
+
+          // Calculate dropped frame time
+          const droppedFrameTime = droppedFrames * frameDuration;
+
+          totalVideoDroppedFrameTime += droppedFrameTime;
+
+          checkMediaEnd();
+        });
+      }
+
+      function createAndPlayAudioElement(index) {
+        // Create audio element
+        const audioElement = document.createElement("audio");
+        audioElement.src = audioSrc;
+        audioElement.loop = false;
+        audioElement.autoplay = false;
+        audioElement.controls = false; // Do not show controls
+
+        // Mute all audio elements except the first one
+        audioElement.muted = index === 0 ? false : true;
+
+        // Append the audio element to the media container
+        const mediaWrapper = document.createElement("div");
+        mediaWrapper.className = "mediaTile";
+        mediaWrapper.appendChild(audioElement);
+        mediaContainer.appendChild(mediaWrapper);
+        mediaElements.push({ audioElement });
+
+        // Store start and end times
+        let audioStartTime = 0;
+        let audioEndTime = 0;
+
+        // Audio events
+        audioElement.addEventListener("play", () => {
+          audioStartTime = performance.now();
+        });
+
+        audioElement.addEventListener("canplay", () => {
+          audioElement.play();
+        });
+
+        audioElement.addEventListener("ended", () => {
+          audioEndTime = performance.now();
+          const actualPlaybackTime = (audioEndTime - audioStartTime) / 1000; // in seconds
+          const audioDuration = audioElement.duration; // in seconds
+
+          totalAudioPlaybackTime += actualPlaybackTime;
+          totalAudioDuration += audioDuration;
+
+          const audioPauseTime = actualPlaybackTime - audioDuration;
+          totalAudioPauseTime += audioPauseTime;
+
+          checkMediaEnd();
+        });
+      }
+
+      function getPlaybackQuality(videoElement) {
+        if (videoElement.getVideoPlaybackQuality) {
+          return videoElement.getVideoPlaybackQuality();
+        } else if ("webkitDroppedFrameCount" in videoElement) {
+          return {
+            totalVideoFrames: videoElement.webkitDecodedFrameCount,
+            droppedVideoFrames: videoElement.webkitDroppedFrameCount,
+          };
+        } else if ("mozDecodedFrames" in videoElement) {
+          return {
+            totalVideoFrames: videoElement.mozDecodedFrames,
+            droppedVideoFrames:
+              videoElement.mozDecodedFrames - videoElement.mozPresentedFrames,
+          };
+        } else {
+          // Fallback if playback quality metrics are not available
+          return {
+            totalVideoFrames: 0,
+            droppedVideoFrames: 0,
+          };
         }
+      }
 
-        startTestButton.addEventListener('click', startTest);
-
-        function startTest() {
-            // Reset previous test data
-            mediaElements = [];
-            mediaEndedCount = 0;
-
-            totalVideoDuration = 0;
-            totalVideoPlaybackTime = 0;
-            totalVideoDroppedFrameTime = 0;
-
-            totalAudioDuration = 0;
-            totalAudioPlaybackTime = 0;
-            totalAudioPauseTime = 0;
-
-            resultsElement.textContent = '';
-            mediaContainer.innerHTML = '';
-
-            totalVideoTiles = parseInt(tileCountInput.value) || 1;
-            totalAudioPlaybacks = parseInt(audioCountInput.value) || 1;
-
-            // Create video tiles
-            for (let i = 0; i < totalVideoTiles; i++) {
-                createAndPlayVideoTile(i);
-            }
-
-            // Create audio playbacks
-            for (let i = 0; i < totalAudioPlaybacks; i++) {
-                createAndPlayAudioElement(i);
-            }
+      function checkMediaEnd() {
+        mediaEndedCount++;
+        // Total media elements are the sum of video tiles and audio playbacks
+        const totalMediaElements = totalVideoTiles + totalAudioPlaybacks;
+        if (mediaEndedCount === totalMediaElements) {
+          displayResults();
         }
+      }
 
-        function createAndPlayVideoTile(index) {
-            const mediaWrapper = document.createElement('div');
-            mediaWrapper.className = 'mediaTile';
+      function displayResults() {
+        // Video metrics
+        const totalVideoPauseTime = totalVideoPlaybackTime - totalVideoDuration;
+        const videoPausePercentage =
+          (totalVideoPauseTime / totalVideoDuration) * 100;
 
-            // Create video element
-            const videoElement = document.createElement('video');
-            videoElement.src = videoSrc;
-            // videoElement.playsInline = true;
-            videoElement.muted = true;
-            videoElement.loop = false;
-            videoElement.autoplay = false;
-            videoElement.controls = false; // Do not show controls
+        const videoDroppedTimePercentage =
+          (totalVideoDroppedFrameTime / totalVideoDuration) * 100;
 
-            mediaWrapper.appendChild(videoElement);
-            mediaContainer.appendChild(mediaWrapper);
-            mediaElements.push({ videoElement });
+        // Audio metrics
+        const audioPausePercentage =
+          (totalAudioPauseTime / totalAudioDuration) * 100;
 
-            // Store start and end times
-            let videoStartTime = 0;
-            let videoEndTime = 0;
-
-            // Video events
-            videoElement.addEventListener('play', () => {
-                videoStartTime = performance.now();
-            });
-
-            videoElement.addEventListener('canplay', () => {
-                videoElement.play();
-            });
-
-            videoElement.addEventListener('ended', () => {
-                videoEndTime = performance.now();
-                const actualPlaybackTime = (videoEndTime - videoStartTime) / 1000; // in seconds
-                const videoDuration = videoElement.duration; // in seconds
-
-                totalVideoPlaybackTime += actualPlaybackTime;
-                totalVideoDuration += videoDuration;
-
-                // Get playback quality data
-                const quality = getPlaybackQuality(videoElement);
-                const droppedFrames = quality.droppedVideoFrames;
-                const totalFrames = quality.totalVideoFrames;
-
-                // Estimate frame duration
-                let frameDuration = 0;
-                if (totalFrames > 0) {
-                    frameDuration = videoDuration / totalFrames; // in seconds
-                } else {
-                    // Fallback to default frame duration (assuming 30 FPS)
-                    frameDuration = 1 / 30;
-                }
-
-                // Calculate dropped frame time
-                const droppedFrameTime = droppedFrames * frameDuration;
-
-                totalVideoDroppedFrameTime += droppedFrameTime;
-
-                checkMediaEnd();
-            });
-        }
-
-        function createAndPlayAudioElement(index) {
-            // Create audio element
-            const audioElement = document.createElement('audio');
-            audioElement.src = audioSrc;
-            audioElement.loop = false;
-            audioElement.autoplay = false;
-            audioElement.controls = false; // Do not show controls
-
-            // Mute all audio elements except the first one
-            audioElement.muted = index === 0 ? false : true;
-
-            // Append the audio element to the media container
-            const mediaWrapper = document.createElement('div');
-            mediaWrapper.className = 'mediaTile';
-            mediaWrapper.appendChild(audioElement);
-            mediaContainer.appendChild(mediaWrapper);
-            mediaElements.push({ audioElement });
-
-            // Store start and end times
-            let audioStartTime = 0;
-            let audioEndTime = 0;
-
-            // Audio events
-            audioElement.addEventListener('play', () => {
-                audioStartTime = performance.now();
-            });
-
-            audioElement.addEventListener('canplay', () => {
-                audioElement.play();
-            });
-
-            audioElement.addEventListener('ended', () => {
-                audioEndTime = performance.now();
-                const actualPlaybackTime = (audioEndTime - audioStartTime) / 1000; // in seconds
-                const audioDuration = audioElement.duration; // in seconds
-
-                totalAudioPlaybackTime += actualPlaybackTime;
-                totalAudioDuration += audioDuration;
-
-                const audioPauseTime = actualPlaybackTime - audioDuration;
-                totalAudioPauseTime += audioPauseTime;
-
-                checkMediaEnd();
-            });
-        }
-
-        function getPlaybackQuality(videoElement) {
-            if (videoElement.getVideoPlaybackQuality) {
-                return videoElement.getVideoPlaybackQuality();
-            } else if ('webkitDroppedFrameCount' in videoElement) {
-                return {
-                    totalVideoFrames: videoElement.webkitDecodedFrameCount,
-                    droppedVideoFrames: videoElement.webkitDroppedFrameCount
-                };
-            } else if ('mozDecodedFrames' in videoElement) {
-                return {
-                    totalVideoFrames: videoElement.mozDecodedFrames,
-                    droppedVideoFrames: videoElement.mozDecodedFrames - videoElement.mozPresentedFrames
-                };
-            } else {
-                // Fallback if playback quality metrics are not available
-                return {
-                    totalVideoFrames: 0,
-                    droppedVideoFrames: 0
-                };
-            }
-        }
-
-        function checkMediaEnd() {
-            mediaEndedCount++;
-            // Total media elements are the sum of video tiles and audio playbacks
-            const totalMediaElements = totalVideoTiles + totalAudioPlaybacks;
-            if (mediaEndedCount === totalMediaElements) {
-                displayResults();
-            }
-        }
-
-        function displayResults() {
-            // Video metrics
-            const totalVideoPauseTime = totalVideoPlaybackTime - totalVideoDuration;
-            const videoPausePercentage = (totalVideoPauseTime / totalVideoDuration) * 100;
-
-            const videoDroppedTimePercentage = (totalVideoDroppedFrameTime / totalVideoDuration) * 100;
-
-            // Audio metrics
-            const audioPausePercentage = (totalAudioPauseTime / totalAudioDuration) * 100;
-
-            resultsElement.textContent = `
+        resultsElement.textContent = `
 Total Video Tiles: ${totalVideoTiles}
 Total Audio Playbacks: ${totalAudioPlaybacks}
 
@@ -298,7 +323,7 @@ Total Audio Playback Time: ${totalAudioPlaybackTime.toFixed(2)} seconds
 Total Audio Pause Time: ${totalAudioPauseTime.toFixed(2)} seconds
 Audio Pause Percentage: ${audioPausePercentage.toFixed(2)}%
 `;
-        }
+      }
     </script>
-</body>
+  </body>
 </html>
